@@ -8,10 +8,10 @@ build:
 	go build ./cmd/worker
 
 run-api:
-	go run ./cmd/api
+	set -a && source .env && set +a && go run ./cmd/api
 
 run-worker:
-	go run ./cmd/worker
+	set -a && source .env && set +a && go run ./cmd/worker
 
 migrate:
 	psql $$DATABASE_URL -f migrations/001_initial_schema.sql
