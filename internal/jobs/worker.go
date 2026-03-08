@@ -65,7 +65,6 @@ func (w *Worker) Run(ctx context.Context) error {
 		select {
 		case <-ctx.Done():
 			log.Info().Msg("worker shutting down, waiting for in-flight jobs...")
-			// Wait for all in-flight jobs to complete
 			for i := 0; i < w.cfg.Concurrency; i++ {
 				sem <- struct{}{}
 			}
@@ -81,14 +80,13 @@ func (w *Worker) Run(ctx context.Context) error {
 			continue
 		}
 		if job == nil {
-			// No pending jobs — back off
 			time.Sleep(w.cfg.PollInterval)
 			continue
 		}
 
-		sem <- struct{}{} // acquire concurrency slot
+		sem <- struct{}{}
 		go func(j *domain.Job) {
-			defer func() { <-sem }() // release slot
+			defer func() { <-sem }()
 
 			jobCtx, cancel := context.WithTimeout(ctx, w.cfg.MaxJobDuration)
 			defer cancel()
@@ -110,7 +108,6 @@ func (w *Worker) processJob(ctx context.Context, job *domain.Job) error {
 
 	// --- Step 1: Download document ---
 	logger.Info().Msg("downloading document")
-	// Extract storage key from the URL
 	docData, err := w.store.Download(ctx, extractStorageKey(job.DocumentURL))
 	if err != nil {
 		return fmt.Errorf("downloading document: %w", err)
@@ -150,11 +147,11 @@ func (w *Worker) processJob(ctx context.Context, job *domain.Job) error {
 	w.jobs.UpdateStatus(ctx, job.ID, domain.JobStatusExtracting)
 
 	var (
-		allResults  []map[string]interface{}
-		totalIn     int
-		totalOut    int
-		totalCost   float64
-		modelUsed   domain.ModelTier
+		allResults []map[string]interface{}
+		totalIn    int
+		totalOut   int
+		totalCost  float64
+		modelUsed  domain.ModelTier
 	)
 
 	for i, chunk := range chunks {
@@ -179,7 +176,6 @@ func (w *Worker) processJob(ctx context.Context, job *domain.Job) error {
 		totalOut += resp.TokensOut
 		modelUsed = resp.ModelUsed
 
-		// Rough cost estimation (GPT-4o pricing as baseline)
 		if resp.ModelUsed == domain.ModelTierStrong {
 			totalCost += float64(resp.TokensIn)*2.5/1_000_000 + float64(resp.TokensOut)*10.0/1_000_000
 		} else {
@@ -202,12 +198,10 @@ func (w *Worker) processJob(ctx context.Context, job *domain.Job) error {
 		return fmt.Errorf("marshaling result: %w", err)
 	}
 
-	// Cache the result
 	w.setCache(cacheKey, resultJSON)
 
-	duration := time.Since(start)
 	logger.Info().
-		Dur("duration", duration).
+		Dur("duration", time.Since(start)).
 		Float64("cost_usd", totalCost).
 		Int("tokens_in", totalIn).
 		Int("tokens_out", totalOut).
@@ -217,16 +211,12 @@ func (w *Worker) processJob(ctx context.Context, job *domain.Job) error {
 	return w.jobs.Complete(ctx, job.ID, resultJSON, confidence, modelUsed, totalCost)
 }
 
-// mergeResults combines extraction results from multiple chunks into a single result.
-// For scalar fields: takes the first non-null value found.
-// For array fields: concatenates all values across chunks.
-// Also computes per-field confidence scores.
+// mergeResults combines extraction results from multiple chunks.
 func mergeResults(results []map[string]interface{}, schema json.RawMessage) (map[string]interface{}, map[string]float64) {
 	merged := make(map[string]interface{})
 	confidence := make(map[string]float64)
-	fieldSources := make(map[string]int) // how many chunks had this field
+	fieldSources := make(map[string]int)
 
-	// Parse schema to understand field types
 	var schemaDef map[string]interface{}
 	json.Unmarshal(schema, &schemaDef)
 	props, _ := schemaDef["properties"].(map[string]interface{})
@@ -245,7 +235,7 @@ func mergeResults(results []map[string]interface{}, schema json.RawMessage) (map
 				continue
 			}
 
-			// If the field type is array, concatenate
+			// Array fields: concatenate across chunks
 			if prop, ok := props[key].(map[string]interface{}); ok {
 				if t, _ := prop["type"].(string); t == "array" {
 					existingArr, ok1 := existing.([]interface{})
@@ -256,22 +246,19 @@ func mergeResults(results []map[string]interface{}, schema json.RawMessage) (map
 					continue
 				}
 			}
-
-			// For scalar fields, keep the first non-null value
-			// (in a more sophisticated version, you'd compare values and flag conflicts)
+			// Scalar fields: keep first non-null value
 		}
 	}
 
-	// Compute confidence scores
 	for key := range props {
 		val, exists := merged[key]
 		switch {
 		case !exists || val == nil:
-			confidence[key] = 0.0 // missing
+			confidence[key] = 0.0
 		case fieldSources[key] > 1:
-			confidence[key] = 1.0 // found in multiple chunks — high confidence
+			confidence[key] = 1.0
 		default:
-			confidence[key] = 0.75 // found once — medium-high confidence
+			confidence[key] = 0.75
 		}
 	}
 
@@ -301,7 +288,6 @@ func (w *Worker) setCache(key string, value json.RawMessage) {
 }
 
 func extractStorageKey(url string) string {
-	// Strip "file://" prefix for local storage
 	if len(url) > 7 && url[:7] == "file://" {
 		return url[7:]
 	}

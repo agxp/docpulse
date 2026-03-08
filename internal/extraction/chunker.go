@@ -193,8 +193,6 @@ func splitParagraphs(text string) []string {
 
 func splitSentences(text string) []string {
 	// Simple sentence splitter — split on . ! ? followed by space or newline.
-	// This is deliberately naive; a production system would use a proper
-	// sentence tokenizer (e.g., punkt), but this handles 90% of cases.
 	var sentences []string
 	var current strings.Builder
 
@@ -202,7 +200,6 @@ func splitSentences(text string) []string {
 	for i := 0; i < len(runes); i++ {
 		current.WriteRune(runes[i])
 
-		// Check for sentence-ending punctuation followed by space/newline/EOF
 		if runes[i] == '.' || runes[i] == '!' || runes[i] == '?' {
 			if i+1 >= len(runes) || unicode.IsSpace(runes[i+1]) || unicode.IsUpper(runes[i+1]) {
 				sentence := strings.TrimSpace(current.String())
@@ -214,7 +211,6 @@ func splitSentences(text string) []string {
 		}
 	}
 
-	// Remaining text
 	if remaining := strings.TrimSpace(current.String()); remaining != "" {
 		sentences = append(sentences, remaining)
 	}

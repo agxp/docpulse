@@ -54,51 +54,36 @@ type Tenant struct {
 }
 
 type Job struct {
-	ID               uuid.UUID        `json:"id"`
-	TenantID         uuid.UUID        `json:"tenant_id"`
-	Status           JobStatus        `json:"status"`
-	DocumentURL      string           `json:"-"` // internal storage URL
-	DocumentFormat   DocumentFormat   `json:"document_format,omitempty"`
-	DocumentSizeBytes int64           `json:"document_size_bytes"`
-	Schema           ExtractionSchema `json:"schema"`
-	Result           json.RawMessage  `json:"result,omitempty"`
-	ConfidenceScores map[string]float64 `json:"confidence_scores,omitempty"`
-	ModelUsed        ModelTier        `json:"model_used,omitempty"`
-	CostUSD          float64          `json:"cost_usd,omitempty"`
-	ErrorMessage     string           `json:"error_message,omitempty"`
-	CreatedAt        time.Time        `json:"created_at"`
-	CompletedAt      *time.Time       `json:"completed_at,omitempty"`
+	ID                uuid.UUID          `json:"id"`
+	TenantID          uuid.UUID          `json:"tenant_id"`
+	Status            JobStatus          `json:"status"`
+	DocumentURL       string             `json:"-"` // internal storage URL
+	DocumentFormat    DocumentFormat     `json:"document_format,omitempty"`
+	DocumentSizeBytes int64              `json:"document_size_bytes"`
+	Schema            ExtractionSchema   `json:"schema"`
+	Result            json.RawMessage    `json:"result,omitempty"`
+	ConfidenceScores  map[string]float64 `json:"confidence_scores,omitempty"`
+	ModelUsed         ModelTier          `json:"model_used,omitempty"`
+	CostUSD           float64            `json:"cost_usd,omitempty"`
+	ErrorMessage      string             `json:"error_message,omitempty"`
+	CreatedAt         time.Time          `json:"created_at"`
+	CompletedAt       *time.Time         `json:"completed_at,omitempty"`
 }
 
 // ExtractionSchema is the user-defined schema describing what to extract.
 // Users submit this as JSON Schema (draft-07 subset).
-//
-// Example:
-//
-//	{
-//	  "type": "object",
-//	  "properties": {
-//	    "vendor":     { "type": "string" },
-//	    "total":      { "type": "number" },
-//	    "line_items": { "type": "array", "items": { "type": "object", "properties": {
-//	      "description": { "type": "string" },
-//	      "amount":      { "type": "number" }
-//	    }}}
-//	  },
-//	  "required": ["vendor", "total"]
-//	}
 type ExtractionSchema struct {
 	Raw json.RawMessage `json:"raw"`
 }
 
 type Chunk struct {
-	ID       uuid.UUID `json:"id"`
-	JobID    uuid.UUID `json:"job_id"`
-	Sequence int       `json:"sequence"`
-	Content  string    `json:"content"`
-	PageStart int      `json:"page_start,omitempty"`
-	PageEnd   int      `json:"page_end,omitempty"`
-	Status   JobStatus `json:"status"`
+	ID        uuid.UUID `json:"id"`
+	JobID     uuid.UUID `json:"job_id"`
+	Sequence  int       `json:"sequence"`
+	Content   string    `json:"content"`
+	PageStart int       `json:"page_start,omitempty"`
+	PageEnd   int       `json:"page_end,omitempty"`
+	Status    JobStatus `json:"status"`
 }
 
 type Webhook struct {
@@ -110,21 +95,21 @@ type Webhook struct {
 }
 
 type WebhookDelivery struct {
-	ID           uuid.UUID `json:"id"`
-	WebhookID    uuid.UUID `json:"webhook_id"`
-	JobID        uuid.UUID `json:"job_id"`
-	Attempt      int       `json:"attempt"`
-	Status       string    `json:"status"` // "success", "failed", "pending"
-	ResponseCode int      `json:"response_code,omitempty"`
+	ID           uuid.UUID  `json:"id"`
+	WebhookID    uuid.UUID  `json:"webhook_id"`
+	JobID        uuid.UUID  `json:"job_id"`
+	Attempt      int        `json:"attempt"`
+	Status       string     `json:"status"` // "success", "failed", "pending"
+	ResponseCode int        `json:"response_code,omitempty"`
 	NextRetryAt  *time.Time `json:"next_retry_at,omitempty"`
 }
 
 // --- API Request/Response Types ---
 
 type ExtractRequest struct {
-	Schema   json.RawMessage `json:"schema"`
-	Webhook  string          `json:"webhook,omitempty"`   // optional callback URL
-	Priority string          `json:"priority,omitempty"`  // "normal" or "high"
+	Schema  json.RawMessage `json:"schema"`
+	Webhook string          `json:"webhook,omitempty"`  // optional callback URL
+	Priority string         `json:"priority,omitempty"` // "normal" or "high"
 	// Document is uploaded as multipart form data, not in JSON body
 }
 
@@ -159,11 +144,11 @@ type ExtractionResult struct {
 }
 
 type ExtractionMetadata struct {
-	TotalChunks    int       `json:"total_chunks"`
-	ProcessedChunks int      `json:"processed_chunks"`
-	ModelUsed      ModelTier `json:"model_used"`
-	TotalTokensIn  int       `json:"total_tokens_in"`
-	TotalTokensOut int       `json:"total_tokens_out"`
-	CostUSD        float64   `json:"cost_usd"`
-	CacheHit       bool      `json:"cache_hit"`
+	TotalChunks     int       `json:"total_chunks"`
+	ProcessedChunks int       `json:"processed_chunks"`
+	ModelUsed       ModelTier `json:"model_used"`
+	TotalTokensIn   int       `json:"total_tokens_in"`
+	TotalTokensOut  int       `json:"total_tokens_out"`
+	CostUSD         float64   `json:"cost_usd"`
+	CacheHit        bool      `json:"cache_hit"`
 }

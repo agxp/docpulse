@@ -36,24 +36,23 @@ func NewRouter(cfg config.LLMConfig) *Router {
 
 // ExtractionRequest represents a single chunk + schema to extract against.
 type ExtractionRequest struct {
-	ChunkText string
-	Schema    json.RawMessage
-	ChunkIndex int
+	ChunkText   string
+	Schema      json.RawMessage
+	ChunkIndex  int
 	TotalChunks int
 }
 
 // ExtractionResponse is the structured result from one LLM call.
 type ExtractionResponse struct {
-	Fields      map[string]interface{} `json:"fields"`
-	RawJSON     json.RawMessage
-	ModelUsed   domain.ModelTier
-	TokensIn    int
-	TokensOut   int
+	Fields    map[string]interface{} `json:"fields"`
+	RawJSON   json.RawMessage
+	ModelUsed domain.ModelTier
+	TokensIn  int
+	TokensOut int
 }
 
 // Extract performs extraction on a single chunk, with model routing and retry logic.
 func (r *Router) Extract(ctx context.Context, req ExtractionRequest) (*ExtractionResponse, error) {
-	// Determine initial model tier based on complexity signals
 	tier := r.selectTier(req)
 	model := r.modelForTier(tier)
 
@@ -69,7 +68,6 @@ func (r *Router) Extract(ctx context.Context, req ExtractionRequest) (*Extractio
 				Int("attempt", attempt).
 				Msg("LLM call failed")
 
-			// On failure, escalate to strong model if we haven't already
 			if tier == domain.ModelTierFast {
 				tier = domain.ModelTierStrong
 				model = r.modelForTier(tier)
@@ -78,7 +76,6 @@ func (r *Router) Extract(ctx context.Context, req ExtractionRequest) (*Extractio
 			continue
 		}
 
-		// Validate the response is valid JSON matching our expectations
 		if err := r.validateResponse(resp.RawJSON, req.Schema); err != nil {
 			log.Warn().
 				Err(err).
@@ -86,7 +83,6 @@ func (r *Router) Extract(ctx context.Context, req ExtractionRequest) (*Extractio
 				Int("attempt", attempt).
 				Msg("response validation failed")
 
-			// Escalate on validation failure
 			if tier == domain.ModelTierFast {
 				tier = domain.ModelTierStrong
 				model = r.modelForTier(tier)
@@ -102,24 +98,16 @@ func (r *Router) Extract(ctx context.Context, req ExtractionRequest) (*Extractio
 	return nil, fmt.Errorf("extraction failed after %d attempts: %w", r.maxRetries+1, lastErr)
 }
 
-// selectTier determines which model to use based on complexity heuristics.
 func (r *Router) selectTier(req ExtractionRequest) domain.ModelTier {
-	// Heuristic 1: Schema field count
-	fieldCount := countSchemaFields(req.Schema)
-	if fieldCount > r.complexityThreshold {
+	if countSchemaFields(req.Schema) > r.complexityThreshold {
 		return domain.ModelTierStrong
 	}
-
-	// Heuristic 2: Chunk length (longer text = more complex extraction)
 	if len(req.ChunkText) > 3000 {
 		return domain.ModelTierStrong
 	}
-
-	// Heuristic 3: Nested arrays/objects in schema suggest complex extraction
 	if hasNestedStructures(req.Schema) {
 		return domain.ModelTierStrong
 	}
-
 	return domain.ModelTierFast
 }
 
@@ -143,7 +131,7 @@ func (r *Router) callLLM(ctx context.Context, model string, req ExtractionReques
 		ResponseFormat: &openai.ChatCompletionResponseFormat{
 			Type: openai.ChatCompletionResponseFormatTypeJSONObject,
 		},
-		Temperature: 0.0, // deterministic extraction
+		Temperature: 0.0,
 	}
 
 	chatResp, err := r.client.CreateChatCompletion(ctx, chatReq)
@@ -170,17 +158,15 @@ func (r *Router) callLLM(ctx context.Context, model string, req ExtractionReques
 	}, nil
 }
 
-// validateResponse checks that the LLM output contains the expected structure.
 func (r *Router) validateResponse(raw json.RawMessage, schema json.RawMessage) error {
 	var result map[string]interface{}
 	if err := json.Unmarshal(raw, &result); err != nil {
 		return fmt.Errorf("response is not a JSON object: %w", err)
 	}
 
-	// Parse schema to get required fields
 	var schemaDef map[string]interface{}
 	if err := json.Unmarshal(schema, &schemaDef); err != nil {
-		return nil // can't validate without a parseable schema
+		return nil
 	}
 
 	required, _ := schemaDef["required"].([]interface{})
