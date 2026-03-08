@@ -11,11 +11,11 @@ import (
 	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
 
-	"github.com/arman/docint/internal/api/middleware"
-	"github.com/arman/docint/internal/database"
-	"github.com/arman/docint/internal/domain"
-	"github.com/arman/docint/internal/ingestion"
-	"github.com/arman/docint/internal/storage"
+	"github.com/arman/docpulse/internal/api/middleware"
+	"github.com/arman/docpulse/internal/database"
+	"github.com/arman/docpulse/internal/domain"
+	"github.com/arman/docpulse/internal/ingestion"
+	"github.com/arman/docpulse/internal/storage"
 )
 
 type Handlers struct {

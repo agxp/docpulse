@@ -6,7 +6,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/arman/docint/internal/domain"
+	"github.com/arman/docpulse/internal/domain"
 )
 
 // ChunkConfig controls chunking behavior.

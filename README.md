@@ -1,4 +1,4 @@
-# DocInt — Document Intelligence API
+# DocPulse — Document Intelligence API
 
 Multi-tenant document extraction platform. Submit any document + a JSON schema describing what to extract → get back structured JSON with per-field confidence scores.
 

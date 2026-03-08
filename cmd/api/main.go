@@ -12,10 +12,10 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 
-	"github.com/arman/docint/internal/api"
-	"github.com/arman/docint/internal/config"
-	"github.com/arman/docint/internal/database"
-	"github.com/arman/docint/internal/storage"
+	"github.com/arman/docpulse/internal/api"
+	"github.com/arman/docpulse/internal/config"
+	"github.com/arman/docpulse/internal/database"
+	"github.com/arman/docpulse/internal/storage"
 )
 
 func main() {

@@ -1,6 +1,6 @@
 package ingestion
 
-import "github.com/arman/docint/internal/domain"
+import "github.com/arman/docpulse/internal/domain"
 
 // DetectFormat identifies the document format from magic bytes.
 // Never trusts file extension — always reads the raw bytes.

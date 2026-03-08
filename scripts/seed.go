@@ -14,10 +14,10 @@ import (
 	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
 
-	"github.com/arman/docint/internal/auth"
-	"github.com/arman/docint/internal/config"
-	"github.com/arman/docint/internal/database"
-	"github.com/arman/docint/internal/domain"
+	"github.com/arman/docpulse/internal/auth"
+	"github.com/arman/docpulse/internal/config"
+	"github.com/arman/docpulse/internal/database"
+	"github.com/arman/docpulse/internal/domain"
 )
 
 func main() {

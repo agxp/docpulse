@@ -9,7 +9,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/arman/docint/internal/domain"
+	"github.com/arman/docpulse/internal/domain"
 )
 
 type JobStore struct {

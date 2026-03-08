@@ -6,8 +6,8 @@ import (
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
 
-	"github.com/arman/docint/internal/api/middleware"
-	"github.com/arman/docint/internal/database"
+	"github.com/arman/docpulse/internal/api/middleware"
+	"github.com/arman/docpulse/internal/database"
 )
 
 func NewRouter(h *Handlers, tenants *database.TenantStore) http.Handler {

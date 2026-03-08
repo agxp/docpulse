@@ -9,8 +9,8 @@ import (
 	"github.com/rs/zerolog/log"
 	openai "github.com/sashabaranov/go-openai"
 
-	"github.com/arman/docint/internal/config"
-	"github.com/arman/docint/internal/domain"
+	"github.com/arman/docpulse/internal/config"
+	"github.com/arman/docpulse/internal/domain"
 )
 
 // Router selects the appropriate model based on extraction complexity

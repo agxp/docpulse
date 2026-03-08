@@ -10,13 +10,13 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 
-	"github.com/arman/docint/internal/config"
-	"github.com/arman/docint/internal/database"
-	"github.com/arman/docint/internal/extraction"
-	"github.com/arman/docint/internal/ingestion"
-	"github.com/arman/docint/internal/jobs"
-	"github.com/arman/docint/internal/llm"
-	"github.com/arman/docint/internal/storage"
+	"github.com/arman/docpulse/internal/config"
+	"github.com/arman/docpulse/internal/database"
+	"github.com/arman/docpulse/internal/extraction"
+	"github.com/arman/docpulse/internal/ingestion"
+	"github.com/arman/docpulse/internal/jobs"
+	"github.com/arman/docpulse/internal/llm"
+	"github.com/arman/docpulse/internal/storage"
 )
 
 func main() {
