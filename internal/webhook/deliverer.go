@@ -19,12 +19,14 @@ import (
 
 // Deliverer sends HMAC-signed webhook payloads with exponential backoff.
 type Deliverer struct {
-	client *http.Client
+	client        *http.Client
+	initialBackoff time.Duration
 }
 
 func NewDeliverer() *Deliverer {
 	return &Deliverer{
-		client: &http.Client{Timeout: 10 * time.Second},
+		client:        &http.Client{Timeout: 10 * time.Second},
+		initialBackoff: time.Second,
 	}
 }
 
@@ -38,7 +40,10 @@ func (d *Deliverer) Deliver(ctx context.Context, webhook domain.Webhook, job dom
 	sig := sign(payload, webhook.Secret)
 
 	const maxAttempts = 5
-	backoff := time.Second
+	backoff := d.initialBackoff
+	if backoff == 0 {
+		backoff = time.Second
+	}
 
 	for attempt := 1; attempt <= maxAttempts; attempt++ {
 		req, err := http.NewRequestWithContext(ctx, http.MethodPost, webhook.URL, bytes.NewReader(payload))
