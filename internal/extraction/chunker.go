@@ -91,8 +91,8 @@ func (c *Chunker) Chunk(jobID uuid.UUID, text string) []domain.Chunk {
 		current.WriteString(para)
 	}
 
-	// Don't forget the last chunk
-	if current.Len() > 0 {
+	// Don't forget the last chunk (respect MaxChunks cap)
+	if current.Len() > 0 && len(chunks) < c.config.MaxChunks {
 		chunk := c.finalizeChunk(jobID, seq, current.String())
 		chunks = append(chunks, chunk)
 	}
