@@ -12,7 +12,7 @@ docker-compose up -d
 cp .env.example .env
 # Edit .env — add your OPENAI_API_KEY
 
-source .env
+set -a && source .env && set +a
 
 # 3. Run migrations + create dev tenant
 make migrate
