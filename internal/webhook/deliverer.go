@@ -14,7 +14,7 @@ import (
 
 	"github.com/rs/zerolog/log"
 
-	"github.com/arman/docpulse/internal/domain"
+	"github.com/agxp/docpulse/internal/domain"
 )
 
 // Deliverer sends HMAC-signed webhook payloads with exponential backoff.

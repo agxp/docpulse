@@ -7,7 +7,7 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/arman/docpulse/internal/domain"
+	"github.com/agxp/docpulse/internal/domain"
 )
 
 // TextExtractor routes documents to the appropriate extraction tool.

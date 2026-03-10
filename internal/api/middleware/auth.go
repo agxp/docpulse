@@ -5,9 +5,9 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/arman/docpulse/internal/auth"
-	"github.com/arman/docpulse/internal/database"
-	"github.com/arman/docpulse/internal/domain"
+	"github.com/agxp/docpulse/internal/auth"
+	"github.com/agxp/docpulse/internal/database"
+	"github.com/agxp/docpulse/internal/domain"
 )
 
 type contextKey string

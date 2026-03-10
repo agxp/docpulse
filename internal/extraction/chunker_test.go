@@ -6,7 +6,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/arman/docpulse/internal/domain"
+	"github.com/agxp/docpulse/internal/domain"
 )
 
 var jobID = uuid.MustParse("00000000-0000-0000-0000-000000000001")

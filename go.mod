@@ -1,4 +1,4 @@
-module github.com/arman/docpulse
+module github.com/agxp/docpulse
 
 go 1.22
 
