@@ -63,9 +63,8 @@ func (h *Handlers) HandleExtract(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var schemaCheck map[string]interface{}
-	if err := json.Unmarshal([]byte(schemaRaw), &schemaCheck); err != nil {
-		writeError(w, "schema is not valid JSON", "bad_request", http.StatusBadRequest)
+	if err := validateSchema([]byte(schemaRaw)); err != nil {
+		writeError(w, err.Error(), "bad_request", http.StatusBadRequest)
 		return
 	}
 
