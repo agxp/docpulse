@@ -92,7 +92,7 @@ func TestDeliver_Success(t *testing.T) {
 	defer srv.Close()
 
 	d := NewDeliverer()
-	if err := d.Deliver(t.Context(), testHook(srv.URL), testJob()); err != nil {
+	if err := d.Deliver(context.Background(), testHook(srv.URL), testJob()); err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
 }
@@ -105,7 +105,7 @@ func TestDeliver_SetsContentTypeHeader(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	NewDeliverer().Deliver(t.Context(), testHook(srv.URL), testJob())
+	NewDeliverer().Deliver(context.Background(), testHook(srv.URL), testJob())
 
 	if gotContentType != "application/json" {
 		t.Errorf("expected Content-Type application/json, got %q", gotContentType)
@@ -121,7 +121,7 @@ func TestDeliver_SetsSignatureHeader(t *testing.T) {
 	defer srv.Close()
 
 	hook := testHook(srv.URL)
-	NewDeliverer().Deliver(t.Context(), hook, testJob())
+	NewDeliverer().Deliver(context.Background(), hook, testJob())
 
 	if !strings.HasPrefix(gotSig, "sha256=") {
 		t.Errorf("expected sha256= signature header, got %q", gotSig)
@@ -139,7 +139,7 @@ func TestDeliver_SignatureMatchesPayload(t *testing.T) {
 	defer srv.Close()
 
 	hook := testHook(srv.URL)
-	NewDeliverer().Deliver(t.Context(), hook, testJob())
+	NewDeliverer().Deliver(context.Background(), hook, testJob())
 
 	expected := sign(gotBody, hook.Secret)
 	if gotSig != expected {
@@ -155,7 +155,7 @@ func TestDeliver_BodyIsValidJSON(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	NewDeliverer().Deliver(t.Context(), testHook(srv.URL), testJob())
+	NewDeliverer().Deliver(context.Background(), testHook(srv.URL), testJob())
 
 	var result map[string]interface{}
 	if err := json.Unmarshal(body, &result); err != nil {
@@ -172,7 +172,7 @@ func TestDeliver_BodyContainsJobID(t *testing.T) {
 	defer srv.Close()
 
 	job := testJob()
-	NewDeliverer().Deliver(t.Context(), testHook(srv.URL), job)
+	NewDeliverer().Deliver(context.Background(), testHook(srv.URL), job)
 
 	if !strings.Contains(string(body), job.ID.String()) {
 		t.Errorf("body does not contain job ID %s: %s", job.ID, body)
@@ -194,7 +194,7 @@ func TestDeliver_Non2xx_Retries(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	fastDeliverer().Deliver(t.Context(), testHook(srv.URL), testJob())
+	fastDeliverer().Deliver(context.Background(), testHook(srv.URL), testJob())
 
 	if calls.Load() != 5 {
 		t.Errorf("expected 5 attempts (maxAttempts), got %d", calls.Load())
@@ -213,7 +213,7 @@ func TestDeliver_EventualSuccess_StopsRetrying(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	if err := fastDeliverer().Deliver(t.Context(), testHook(srv.URL), testJob()); err != nil {
+	if err := fastDeliverer().Deliver(context.Background(), testHook(srv.URL), testJob()); err != nil {
 		t.Errorf("expected success after retries, got: %v", err)
 	}
 	if calls.Load() != 3 {
@@ -227,7 +227,7 @@ func TestDeliver_FailsAfterMaxAttempts(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	if err := fastDeliverer().Deliver(t.Context(), testHook(srv.URL), testJob()); err == nil {
+	if err := fastDeliverer().Deliver(context.Background(), testHook(srv.URL), testJob()); err == nil {
 		t.Error("expected error after max attempts")
 	}
 }
@@ -240,7 +240,7 @@ func TestDeliver_UsesPostMethod(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	NewDeliverer().Deliver(t.Context(), testHook(srv.URL), testJob())
+	NewDeliverer().Deliver(context.Background(), testHook(srv.URL), testJob())
 
 	if gotMethod != http.MethodPost {
 		t.Errorf("expected POST, got %s", gotMethod)
@@ -253,7 +253,7 @@ func TestDeliver_ContextCancellation(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	ctx, cancel := context.WithCancel(t.Context())
+	ctx, cancel := context.WithCancel(context.Background())
 	cancel() // cancel immediately
 
 	err := fastDeliverer().Deliver(ctx, testHook(srv.URL), testJob())
