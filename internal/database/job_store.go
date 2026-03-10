@@ -58,6 +58,15 @@ func (s *JobStore) GetByID(ctx context.Context, jobID uuid.UUID) (*domain.Job, e
 	return job, nil
 }
 
+func (s *JobStore) Count(ctx context.Context, tenantID uuid.UUID) (int, error) {
+	var n int
+	err := s.db.QueryRow(ctx, `SELECT COUNT(*) FROM jobs WHERE tenant_id = $1`, tenantID).Scan(&n)
+	if err != nil {
+		return 0, fmt.Errorf("counting jobs: %w", err)
+	}
+	return n, nil
+}
+
 func (s *JobStore) List(ctx context.Context, tenantID uuid.UUID, limit, offset int) ([]domain.Job, error) {
 	rows, err := s.db.Query(ctx, `
 		SELECT id, tenant_id, status, document_url, document_format, document_size_bytes,

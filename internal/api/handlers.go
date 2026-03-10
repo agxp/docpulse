@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
@@ -20,9 +21,21 @@ import (
 	"github.com/agxp/docpulse/internal/storage"
 )
 
+type jobStore interface {
+	Create(ctx context.Context, job *domain.Job) error
+	Get(ctx context.Context, tenantID, jobID uuid.UUID) (*domain.Job, error)
+	List(ctx context.Context, tenantID uuid.UUID, limit, offset int) ([]domain.Job, error)
+	Count(ctx context.Context, tenantID uuid.UUID) (int, error)
+}
+
+type webhookStore interface {
+	Create(ctx context.Context, hook *domain.Webhook) error
+	Delete(ctx context.Context, tenantID, hookID uuid.UUID) error
+}
+
 type Handlers struct {
-	jobs     *database.JobStore
-	webhooks *database.WebhookStore
+	jobs     jobStore
+	webhooks webhookStore
 	store    storage.ObjectStore
 	baseURL  string
 }
@@ -151,6 +164,13 @@ func (h *Handlers) HandleListJobs(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	total, err := h.jobs.Count(r.Context(), tenant.ID)
+	if err != nil {
+		log.Error().Err(err).Msg("failed to count jobs")
+		writeError(w, "failed to list jobs", "internal_error", http.StatusInternalServerError)
+		return
+	}
+
 	jobs, err := h.jobs.List(r.Context(), tenant.ID, limit, offset)
 	if err != nil {
 		log.Error().Err(err).Msg("failed to list jobs")
@@ -160,6 +180,7 @@ func (h *Handlers) HandleListJobs(w http.ResponseWriter, r *http.Request) {
 
 	writeJSON(w, http.StatusOK, map[string]interface{}{
 		"jobs":   jobs,
+		"total":  total,
 		"limit":  limit,
 		"offset": offset,
 	})

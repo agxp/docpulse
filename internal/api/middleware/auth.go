@@ -44,3 +44,8 @@ func TenantFromContext(ctx context.Context) *domain.Tenant {
 	t, _ := ctx.Value(tenantKey).(*domain.Tenant)
 	return t
 }
+
+// WithTenant injects a Tenant into a context. Used in tests.
+func WithTenant(ctx context.Context, tenant *domain.Tenant) context.Context {
+	return context.WithValue(ctx, tenantKey, tenant)
+}

@@ -173,7 +173,7 @@ Go 1.24 · PostgreSQL 16 · OpenAI API · Fly.io
 
 - **Storage**: only local filesystem (`LocalStore`) is implemented. S3 support is stubbed but not built.
 - **Schema validation**: validates structure (type=object, properties present, each property has a type), but does not implement the full JSON Schema specification.
-- **Job list pagination**: `limit`/`offset` work but the response has no `total` count.
+- **Job list pagination**: `limit`/`offset` work and response includes a `total` count, but there is no cursor-based pagination.
 - **Redis**: in `docker-compose.yml` but not used. Rate limiting is in-memory only and lost on restart.
 - **Worker cache**: in-memory content-hash cache, no eviction policy and lost on worker restart.
 - **`make migrate`**: runs `psql` directly — requires `psql` installed on your machine, not just Docker.
