@@ -39,9 +39,10 @@ func main() {
 
 	jobs := database.NewJobStore(db)
 	tenants := database.NewTenantStore(db)
+	webhooks := database.NewWebhookStore(db)
 
 	baseURL := fmt.Sprintf("http://localhost:%s", cfg.API.Port)
-	handlers := api.NewHandlers(jobs, store, baseURL)
+	handlers := api.NewHandlers(jobs, webhooks, store, baseURL)
 	router := api.NewRouter(handlers, tenants)
 
 	srv := &http.Server{

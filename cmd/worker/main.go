@@ -17,6 +17,7 @@ import (
 	"github.com/agxp/docpulse/internal/jobs"
 	"github.com/agxp/docpulse/internal/llm"
 	"github.com/agxp/docpulse/internal/storage"
+	"github.com/agxp/docpulse/internal/webhook"
 )
 
 func main() {
@@ -39,11 +40,13 @@ func main() {
 	}
 
 	jobStore := database.NewJobStore(db)
+	webhookStore := database.NewWebhookStore(db)
+	deliverer := webhook.NewDeliverer()
 	extractor := ingestion.NewTextExtractor()
 	chunker := extraction.NewChunker(extraction.DefaultChunkConfig())
 	router := llm.NewRouter(cfg.LLM)
 
-	worker := jobs.NewWorker(jobStore, store, extractor, chunker, router, cfg.Worker)
+	worker := jobs.NewWorker(jobStore, webhookStore, deliverer, store, extractor, chunker, router, cfg.Worker)
 
 	runCtx, runCancel := context.WithCancel(context.Background())
 

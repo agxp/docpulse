@@ -26,6 +26,9 @@ func NewRouter(h *Handlers, tenants *database.TenantStore) http.Handler {
 		r.Post("/v1/extract", h.HandleExtract)
 		r.Get("/v1/jobs/{id}", h.HandleGetJob)
 		r.Get("/v1/jobs", h.HandleListJobs)
+
+		r.Post("/v1/webhooks", h.HandleCreateWebhook)
+		r.Delete("/v1/webhooks/{id}", h.HandleDeleteWebhook)
 	})
 
 	return r

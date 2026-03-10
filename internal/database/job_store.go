@@ -44,6 +44,20 @@ func (s *JobStore) Get(ctx context.Context, tenantID, jobID uuid.UUID) (*domain.
 	return scanJob(row)
 }
 
+// GetByID fetches a job without tenant scoping — for internal use by the worker only.
+func (s *JobStore) GetByID(ctx context.Context, jobID uuid.UUID) (*domain.Job, error) {
+	row := s.db.QueryRow(ctx, `
+		SELECT id, tenant_id, status, document_url, document_format, document_size_bytes,
+		       schema, result, confidence_scores, model_used, cost_usd, error_message,
+		       created_at, completed_at
+		FROM jobs WHERE id = $1`, jobID)
+	job, err := scanJob(row)
+	if err != nil {
+		return nil, fmt.Errorf("getting job: %w", err)
+	}
+	return job, nil
+}
+
 func (s *JobStore) List(ctx context.Context, tenantID uuid.UUID, limit, offset int) ([]domain.Job, error) {
 	rows, err := s.db.Query(ctx, `
 		SELECT id, tenant_id, status, document_url, document_format, document_size_bytes,

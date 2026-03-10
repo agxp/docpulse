@@ -18,12 +18,15 @@ import (
 	"github.com/agxp/docpulse/internal/ingestion"
 	"github.com/agxp/docpulse/internal/llm"
 	"github.com/agxp/docpulse/internal/storage"
+	"github.com/agxp/docpulse/internal/webhook"
 )
 
 // Worker polls for pending jobs and processes them through the full pipeline:
-// ingest → chunk → extract → assemble → complete
+// ingest → chunk → extract → assemble → complete → webhook
 type Worker struct {
 	jobs      *database.JobStore
+	webhooks  *database.WebhookStore
+	deliverer *webhook.Deliverer
 	store     storage.ObjectStore
 	extractor *ingestion.TextExtractor
 	chunker   *extraction.Chunker
@@ -37,6 +40,8 @@ type Worker struct {
 
 func NewWorker(
 	jobs *database.JobStore,
+	webhooks *database.WebhookStore,
+	deliverer *webhook.Deliverer,
 	store storage.ObjectStore,
 	extractor *ingestion.TextExtractor,
 	chunker *extraction.Chunker,
@@ -45,6 +50,8 @@ func NewWorker(
 ) *Worker {
 	return &Worker{
 		jobs:      jobs,
+		webhooks:  webhooks,
+		deliverer: deliverer,
 		store:     store,
 		extractor: extractor,
 		chunker:   chunker,
@@ -117,7 +124,13 @@ func (w *Worker) processJob(ctx context.Context, job *domain.Job) error {
 	cacheKey := contentHash(docData, job.Schema.Raw)
 	if cached := w.checkCache(cacheKey); cached != nil {
 		logger.Info().Msg("cache hit — returning cached result")
-		return w.jobs.Complete(ctx, job.ID, cached, map[string]float64{"_cache_hit": 1.0}, domain.ModelTierFast, 0)
+		if err := w.jobs.Complete(ctx, job.ID, cached, map[string]float64{"_cache_hit": 1.0}, domain.ModelTierFast, 0); err != nil {
+			return err
+		}
+		if completed, err := w.jobs.GetByID(ctx, job.ID); err == nil {
+			w.fireWebhooks(ctx, *completed)
+		}
+		return nil
 	}
 
 	// --- Step 3: Extract text ---
@@ -208,7 +221,19 @@ func (w *Worker) processJob(ctx context.Context, job *domain.Job) error {
 		Str("model", string(modelUsed)).
 		Msg("job completed")
 
-	return w.jobs.Complete(ctx, job.ID, resultJSON, confidence, modelUsed, totalCost)
+	if err := w.jobs.Complete(ctx, job.ID, resultJSON, confidence, modelUsed, totalCost); err != nil {
+		return err
+	}
+
+	// Fetch the completed job to pass full state to webhooks
+	completed, err := w.jobs.GetByID(ctx, job.ID)
+	if err != nil {
+		logger.Warn().Err(err).Msg("failed to fetch completed job for webhook delivery")
+		return nil
+	}
+
+	w.fireWebhooks(ctx, *completed)
+	return nil
 }
 
 // mergeResults combines extraction results from multiple chunks.
@@ -285,6 +310,27 @@ func (w *Worker) setCache(key string, value json.RawMessage) {
 	w.cacheMu.Lock()
 	defer w.cacheMu.Unlock()
 	w.cache[key] = value
+}
+
+// fireWebhooks delivers the completed job to all active tenant webhooks.
+// Runs each delivery in its own goroutine so it never blocks the worker loop.
+func (w *Worker) fireWebhooks(ctx context.Context, job domain.Job) {
+	hooks, err := w.webhooks.ListActive(ctx, job.TenantID)
+	if err != nil {
+		log.Warn().Err(err).Str("job_id", job.ID.String()).Msg("failed to list webhooks")
+		return
+	}
+	for _, hook := range hooks {
+		hook := hook
+		go func() {
+			if err := w.deliverer.Deliver(ctx, hook, job); err != nil {
+				log.Warn().Err(err).
+					Str("job_id", job.ID.String()).
+					Str("webhook_id", hook.ID.String()).
+					Msg("webhook delivery failed")
+			}
+		}()
+	}
 }
 
 func extractStorageKey(url string) string {

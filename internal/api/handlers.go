@@ -1,6 +1,8 @@
 package api
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -19,13 +21,14 @@ import (
 )
 
 type Handlers struct {
-	jobs    *database.JobStore
-	store   storage.ObjectStore
-	baseURL string
+	jobs     *database.JobStore
+	webhooks *database.WebhookStore
+	store    storage.ObjectStore
+	baseURL  string
 }
 
-func NewHandlers(jobs *database.JobStore, store storage.ObjectStore, baseURL string) *Handlers {
-	return &Handlers{jobs: jobs, store: store, baseURL: baseURL}
+func NewHandlers(jobs *database.JobStore, webhooks *database.WebhookStore, store storage.ObjectStore, baseURL string) *Handlers {
+	return &Handlers{jobs: jobs, webhooks: webhooks, store: store, baseURL: baseURL}
 }
 
 // HandleExtract accepts a multipart document + JSON schema and creates an async job.
@@ -163,6 +166,62 @@ func (h *Handlers) HandleListJobs(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// HandleCreateWebhook registers a new webhook URL for the tenant.
+// The secret is generated server-side and returned once — store it to verify signatures.
+func (h *Handlers) HandleCreateWebhook(w http.ResponseWriter, r *http.Request) {
+	tenant := middleware.TenantFromContext(r.Context())
+
+	var body struct {
+		URL string `json:"url"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.URL == "" {
+		writeError(w, "missing or invalid url", "bad_request", http.StatusBadRequest)
+		return
+	}
+
+	secret, err := generateSecret()
+	if err != nil {
+		log.Error().Err(err).Msg("failed to generate webhook secret")
+		writeError(w, "failed to create webhook", "internal_error", http.StatusInternalServerError)
+		return
+	}
+
+	hook := &domain.Webhook{
+		ID:       uuid.New(),
+		TenantID: tenant.ID,
+		URL:      body.URL,
+		Secret:   secret,
+		Active:   true,
+	}
+
+	if err := h.webhooks.Create(r.Context(), hook); err != nil {
+		log.Error().Err(err).Msg("failed to create webhook")
+		writeError(w, "failed to create webhook", "internal_error", http.StatusInternalServerError)
+		return
+	}
+
+	// Return the full hook including secret — only time it's shown
+	writeJSON(w, http.StatusCreated, hook)
+}
+
+// HandleDeleteWebhook deactivates a webhook.
+func (h *Handlers) HandleDeleteWebhook(w http.ResponseWriter, r *http.Request) {
+	tenant := middleware.TenantFromContext(r.Context())
+
+	hookID, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		writeError(w, "invalid webhook ID", "bad_request", http.StatusBadRequest)
+		return
+	}
+
+	if err := h.webhooks.Delete(r.Context(), tenant.ID, hookID); err != nil {
+		writeError(w, "webhook not found", "not_found", http.StatusNotFound)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
 // HandleHealth returns 200 OK.
 func (h *Handlers) HandleHealth(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
@@ -178,4 +237,12 @@ func writeJSON(w http.ResponseWriter, status int, v interface{}) {
 
 func writeError(w http.ResponseWriter, msg, code string, status int) {
 	writeJSON(w, status, domain.ErrorResponse{Error: msg, Code: code})
+}
+
+func generateSecret() (string, error) {
+	b := make([]byte, 32)
+	if _, err := rand.Read(b); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(b), nil
 }
