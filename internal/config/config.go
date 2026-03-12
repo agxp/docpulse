@@ -8,6 +8,7 @@ import (
 
 type Config struct {
 	DB      DBConfig
+	Redis   RedisConfig
 	API     APIConfig
 	LLM     LLMConfig
 	Worker  WorkerConfig
@@ -18,8 +19,13 @@ type DBConfig struct {
 	URL string
 }
 
+type RedisConfig struct {
+	URL string
+}
+
 type APIConfig struct {
-	Port string
+	Port              string
+	RateLimitPerMinute int
 }
 
 type LLMConfig struct {
@@ -34,6 +40,7 @@ type WorkerConfig struct {
 	Concurrency    int
 	PollInterval   time.Duration
 	MaxJobDuration time.Duration
+	CacheTTL       time.Duration
 }
 
 type StorageConfig struct {
@@ -45,8 +52,12 @@ func Load() Config {
 		DB: DBConfig{
 			URL: getEnv("DATABASE_URL", "postgres://docpulse:docpulse@localhost:5432/docpulse?sslmode=disable"),
 		},
+		Redis: RedisConfig{
+			URL: getEnv("REDIS_URL", "redis://localhost:6379"),
+		},
 		API: APIConfig{
-			Port: getEnv("PORT", "8080"),
+			Port:               getEnv("PORT", "8080"),
+			RateLimitPerMinute: getEnvInt("RATE_LIMIT_PER_MINUTE", 60),
 		},
 		LLM: LLMConfig{
 			OpenAIKey:           os.Getenv("OPENAI_API_KEY"),
@@ -59,6 +70,7 @@ func Load() Config {
 			Concurrency:    getEnvInt("WORKER_CONCURRENCY", 4),
 			PollInterval:   getEnvDuration("WORKER_POLL_INTERVAL", 2*time.Second),
 			MaxJobDuration: getEnvDuration("WORKER_MAX_JOB_DURATION", 10*time.Minute),
+			CacheTTL:       getEnvDuration("WORKER_CACHE_TTL", 24*time.Hour),
 		},
 		Storage: StorageConfig{
 			LocalDir: getEnv("STORAGE_LOCAL_DIR", "/tmp/docpulse"),

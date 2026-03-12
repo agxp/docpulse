@@ -5,12 +5,13 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
-	"sync"
 	"time"
 
 	"github.com/rs/zerolog/log"
 
+	"github.com/agxp/docpulse/internal/cache"
 	"github.com/agxp/docpulse/internal/config"
 	"github.com/agxp/docpulse/internal/database"
 	"github.com/agxp/docpulse/internal/domain"
@@ -32,10 +33,7 @@ type Worker struct {
 	chunker   *extraction.Chunker
 	router    *llm.Router
 	cfg       config.WorkerConfig
-
-	// Cache: content hash → extraction result (simple dedup, not semantic similarity)
-	cache   map[string]json.RawMessage
-	cacheMu sync.RWMutex
+	cache     cache.Cache
 }
 
 func NewWorker(
@@ -46,6 +44,7 @@ func NewWorker(
 	extractor *ingestion.TextExtractor,
 	chunker *extraction.Chunker,
 	router *llm.Router,
+	c cache.Cache,
 	cfg config.WorkerConfig,
 ) *Worker {
 	return &Worker{
@@ -56,8 +55,8 @@ func NewWorker(
 		extractor: extractor,
 		chunker:   chunker,
 		router:    router,
+		cache:     c,
 		cfg:       cfg,
-		cache:     make(map[string]json.RawMessage),
 	}
 }
 
@@ -122,7 +121,7 @@ func (w *Worker) processJob(ctx context.Context, job *domain.Job) error {
 
 	// --- Step 2: Check content hash cache ---
 	cacheKey := contentHash(docData, job.Schema.Raw)
-	if cached := w.checkCache(cacheKey); cached != nil {
+	if cached := w.checkCache(ctx, cacheKey); cached != nil {
 		logger.Info().Msg("cache hit — returning cached result")
 		if err := w.jobs.Complete(ctx, job.ID, cached, map[string]float64{"_cache_hit": 1.0}, domain.ModelTierFast, 0); err != nil {
 			return err
@@ -211,7 +210,7 @@ func (w *Worker) processJob(ctx context.Context, job *domain.Job) error {
 		return fmt.Errorf("marshaling result: %w", err)
 	}
 
-	w.setCache(cacheKey, resultJSON)
+	w.setCache(ctx, cacheKey, resultJSON)
 
 	logger.Info().
 		Dur("duration", time.Since(start)).
@@ -297,19 +296,24 @@ func contentHash(docData []byte, schema json.RawMessage) string {
 	h.Write(docData)
 	h.Write([]byte("||"))
 	h.Write(schema)
-	return hex.EncodeToString(h.Sum(nil))
+	return "extraction:" + hex.EncodeToString(h.Sum(nil))
 }
 
-func (w *Worker) checkCache(key string) json.RawMessage {
-	w.cacheMu.RLock()
-	defer w.cacheMu.RUnlock()
-	return w.cache[key]
+func (w *Worker) checkCache(ctx context.Context, key string) json.RawMessage {
+	data, err := w.cache.Get(ctx, key)
+	if err != nil {
+		if !errors.Is(err, cache.ErrMiss) {
+			log.Warn().Err(err).Msg("cache get error")
+		}
+		return nil
+	}
+	return json.RawMessage(data)
 }
 
-func (w *Worker) setCache(key string, value json.RawMessage) {
-	w.cacheMu.Lock()
-	defer w.cacheMu.Unlock()
-	w.cache[key] = value
+func (w *Worker) setCache(ctx context.Context, key string, value json.RawMessage) {
+	if err := w.cache.Set(ctx, key, []byte(value), w.cfg.CacheTTL); err != nil {
+		log.Warn().Err(err).Msg("cache set error")
+	}
 }
 
 // fireWebhooks delivers the completed job to all active tenant webhooks.

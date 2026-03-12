@@ -2,6 +2,7 @@ package jobs
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 )
 
@@ -82,18 +83,26 @@ func TestContentHash_DifferentSchemasDifferentHash(t *testing.T) {
 	}
 }
 
+func TestContentHash_HasPrefix(t *testing.T) {
+	h := contentHash([]byte("data"), json.RawMessage(`{}`))
+	if !strings.HasPrefix(h, "extraction:") {
+		t.Errorf("expected 'extraction:' prefix, got %q", h)
+	}
+}
+
 func TestContentHash_IsHex64(t *testing.T) {
 	h := contentHash([]byte("data"), json.RawMessage(`{}`))
-	if len(h) != 64 {
-		t.Errorf("expected 64-char hex string, got len=%d", len(h))
+	// "extraction:" prefix (11) + 64 hex chars = 75
+	if len(h) != 75 {
+		t.Errorf("expected 75-char key (prefix+hex), got len=%d", len(h))
 	}
 }
 
 func TestContentHash_EmptyInputs(t *testing.T) {
 	// Should not panic
 	h := contentHash([]byte{}, json.RawMessage(`{}`))
-	if len(h) != 64 {
-		t.Errorf("expected 64-char hash for empty inputs, got %d", len(h))
+	if len(h) != 75 {
+		t.Errorf("expected 75-char key for empty inputs, got %d", len(h))
 	}
 }
 

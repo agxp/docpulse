@@ -13,6 +13,7 @@ import (
 	"github.com/rs/zerolog/log"
 
 	"github.com/agxp/docpulse/internal/api"
+	"github.com/agxp/docpulse/internal/cache"
 	"github.com/agxp/docpulse/internal/config"
 	"github.com/agxp/docpulse/internal/database"
 	"github.com/agxp/docpulse/internal/storage"
@@ -32,6 +33,11 @@ func main() {
 	}
 	defer db.Close()
 
+	redisCache, err := cache.NewRedisCache(cfg.Redis.URL)
+	if err != nil {
+		log.Fatal().Err(err).Msg("failed to connect to Redis")
+	}
+
 	store, err := storage.NewLocalStore(cfg.Storage.LocalDir)
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed to initialize storage")
@@ -43,7 +49,7 @@ func main() {
 
 	baseURL := fmt.Sprintf("http://localhost:%s", cfg.API.Port)
 	handlers := api.NewHandlers(jobs, webhooks, store, baseURL)
-	router := api.NewRouter(handlers, tenants)
+	router := api.NewRouter(handlers, tenants, redisCache, cfg.API.RateLimitPerMinute)
 
 	srv := &http.Server{
 		Addr:         ":" + cfg.API.Port,

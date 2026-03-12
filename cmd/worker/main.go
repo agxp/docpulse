@@ -10,6 +10,7 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 
+	"github.com/agxp/docpulse/internal/cache"
 	"github.com/agxp/docpulse/internal/config"
 	"github.com/agxp/docpulse/internal/database"
 	"github.com/agxp/docpulse/internal/extraction"
@@ -34,6 +35,11 @@ func main() {
 	}
 	defer db.Close()
 
+	redisCache, err := cache.NewRedisCache(cfg.Redis.URL)
+	if err != nil {
+		log.Fatal().Err(err).Msg("failed to connect to Redis")
+	}
+
 	store, err := storage.NewLocalStore(cfg.Storage.LocalDir)
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed to initialize storage")
@@ -46,7 +52,7 @@ func main() {
 	chunker := extraction.NewChunker(extraction.DefaultChunkConfig())
 	router := llm.NewRouter(cfg.LLM)
 
-	worker := jobs.NewWorker(jobStore, webhookStore, deliverer, store, extractor, chunker, router, cfg.Worker)
+	worker := jobs.NewWorker(jobStore, webhookStore, deliverer, store, extractor, chunker, router, redisCache, cfg.Worker)
 
 	runCtx, runCancel := context.WithCancel(context.Background())
 

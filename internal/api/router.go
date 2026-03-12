@@ -1,7 +1,9 @@
 package api
 
 import (
+	"context"
 	"net/http"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
@@ -10,7 +12,12 @@ import (
 	"github.com/agxp/docpulse/internal/database"
 )
 
-func NewRouter(h *Handlers, tenants *database.TenantStore) http.Handler {
+// rateIncrementer is the subset of RedisCache the router needs.
+type rateIncrementer interface {
+	RateIncr(ctx context.Context, key string, window time.Duration) (int64, error)
+}
+
+func NewRouter(h *Handlers, tenants *database.TenantStore, counter rateIncrementer, rateLimit int) http.Handler {
 	r := chi.NewRouter()
 
 	r.Use(chimiddleware.Recoverer)
@@ -22,6 +29,7 @@ func NewRouter(h *Handlers, tenants *database.TenantStore) http.Handler {
 	// Authenticated
 	r.Group(func(r chi.Router) {
 		r.Use(middleware.Auth(tenants))
+		r.Use(middleware.RateLimit(counter, rateLimit))
 
 		r.Post("/v1/extract", h.HandleExtract)
 		r.Get("/v1/jobs/{id}", h.HandleGetJob)
