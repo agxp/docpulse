@@ -3,20 +3,28 @@ package main
 import (
 	"context"
 	"fmt"
+	"io/fs"
 	"net/http"
 	"os"
 	"os/signal"
+	"sort"
+	"strings"
 	"syscall"
 	"time"
 
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 
 	"github.com/agxp/docpulse/internal/api"
+	"github.com/agxp/docpulse/internal/auth"
 	"github.com/agxp/docpulse/internal/cache"
 	"github.com/agxp/docpulse/internal/config"
 	"github.com/agxp/docpulse/internal/database"
+	"github.com/agxp/docpulse/internal/domain"
 	"github.com/agxp/docpulse/internal/storage"
+	"github.com/agxp/docpulse/migrations"
 )
 
 func main() {
@@ -33,6 +41,15 @@ func main() {
 	}
 	defer db.Close()
 
+	if err := runMigrations(db); err != nil {
+		log.Fatal().Err(err).Msg("migrations failed")
+	}
+
+	if cfg.API.DevMode && cfg.API.DevAPIKey != "" {
+		seedDevTenant(db, cfg.API.DevAPIKey)
+		log.Info().Str("api_key", cfg.API.DevAPIKey).Msg("dev tenant ready")
+	}
+
 	redisCache, err := cache.NewRedisCache(cfg.Redis.URL)
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed to connect to Redis")
@@ -48,7 +65,7 @@ func main() {
 	webhooks := database.NewWebhookStore(db)
 
 	baseURL := fmt.Sprintf("http://localhost:%s", cfg.API.Port)
-	handlers := api.NewHandlers(jobs, webhooks, store, baseURL)
+	handlers := api.NewHandlers(jobs, webhooks, store, baseURL, cfg.API.DevAPIKey)
 	router := api.NewRouter(handlers, tenants, redisCache, cfg.API.RateLimitPerMinute)
 
 	srv := &http.Server{
@@ -78,4 +95,42 @@ func main() {
 		log.Error().Err(err).Msg("server forced to shutdown")
 	}
 	log.Info().Msg("server stopped")
+}
+
+func runMigrations(db *pgxpool.Pool) error {
+	entries, err := fs.ReadDir(migrations.Files, ".")
+	if err != nil {
+		return fmt.Errorf("reading migrations: %w", err)
+	}
+	sort.Slice(entries, func(i, j int) bool { return entries[i].Name() < entries[j].Name() })
+	for _, e := range entries {
+		if !strings.HasSuffix(e.Name(), ".sql") {
+			continue
+		}
+		sql, err := migrations.Files.ReadFile(e.Name())
+		if err != nil {
+			return fmt.Errorf("reading %s: %w", e.Name(), err)
+		}
+		if _, err := db.Exec(context.Background(), string(sql)); err != nil {
+			return fmt.Errorf("applying %s: %w", e.Name(), err)
+		}
+		log.Info().Str("file", e.Name()).Msg("migration applied")
+	}
+	return nil
+}
+
+func seedDevTenant(db *pgxpool.Pool, rawKey string) {
+	keyHash := auth.HashAPIKey(rawKey)
+	tenant := &domain.Tenant{
+		ID:         uuid.New(),
+		Name:       "dev",
+		APIKeyHash: keyHash,
+		RateLimit:  1000,
+		ByteLimit:  1 << 30,
+		CreatedAt:  time.Now(),
+	}
+	store := database.NewTenantStore(db)
+	if err := store.CreateIfNotExists(context.Background(), tenant); err != nil {
+		log.Warn().Err(err).Msg("could not seed dev tenant")
+	}
 }

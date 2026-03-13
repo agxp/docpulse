@@ -1,0 +1,823 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DocPulse — Document Intelligence API</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0d0f18;
+      --surface: #13162a;
+      --surface2: #1c2040;
+      --border: #2a2f52;
+      --accent: #6366f1;
+      --accent-hover: #818cf8;
+      --accent-dim: rgba(99,102,241,.15);
+      --green: #10b981;
+      --yellow: #f59e0b;
+      --red: #ef4444;
+      --text: #e2e8f0;
+      --muted: #6b7a99;
+      --code-bg: #090b14;
+      --radius: 10px;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.6;
+    }
+
+    header {
+      border-bottom: 1px solid var(--border);
+      padding: 18px 32px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: var(--surface);
+    }
+
+    .logo {
+      width: 32px; height: 32px;
+      background: var(--accent);
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px;
+    }
+
+    .logo-text { font-size: 18px; font-weight: 700; letter-spacing: -.3px; }
+    .logo-tag { font-size: 12px; color: var(--muted); margin-left: 4px; }
+
+    .container {
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 40px 24px 80px;
+    }
+
+    h2 { font-size: 22px; font-weight: 600; margin-bottom: 6px; }
+    p.sub { color: var(--muted); font-size: 14px; margin-bottom: 24px; }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 28px;
+      margin-bottom: 20px;
+    }
+
+    .card-title {
+      font-size: 13px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      color: var(--muted);
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .step-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 20px; height: 20px;
+      border-radius: 50%;
+      background: var(--accent-dim);
+      color: var(--accent);
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 6px; }
+
+    input[type="text"], textarea, select {
+      width: 100%;
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      color: var(--text);
+      padding: 10px 14px;
+      font-size: 13px;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      outline: none;
+      transition: border-color .15s;
+    }
+
+    input[type="text"]:focus, textarea:focus {
+      border-color: var(--accent);
+    }
+
+    textarea { resize: vertical; min-height: 180px; }
+
+    .input-row {
+      display: flex;
+      gap: 10px;
+    }
+
+    .input-row input { flex: 1; }
+
+    button {
+      cursor: pointer;
+      border: none;
+      border-radius: 7px;
+      font-size: 14px;
+      font-weight: 600;
+      padding: 10px 20px;
+      transition: background .15s, opacity .15s;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    .btn-primary:hover { background: var(--accent-hover); }
+    .btn-primary:disabled { opacity: .45; cursor: not-allowed; }
+
+    .btn-ghost {
+      background: var(--surface2);
+      color: var(--muted);
+      border: 1px solid var(--border);
+      font-size: 12px;
+      padding: 8px 14px;
+    }
+
+    .btn-ghost:hover { color: var(--text); border-color: var(--accent); }
+
+    .drop-zone {
+      border: 2px dashed var(--border);
+      border-radius: var(--radius);
+      padding: 36px 24px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color .2s, background .2s;
+      position: relative;
+    }
+
+    .drop-zone:hover, .drop-zone.over {
+      border-color: var(--accent);
+      background: var(--accent-dim);
+    }
+
+    .drop-zone input[type="file"] {
+      position: absolute; inset: 0;
+      opacity: 0; cursor: pointer;
+      width: 100%; height: 100%;
+    }
+
+    .drop-icon { font-size: 32px; margin-bottom: 10px; }
+    .drop-label { font-size: 14px; color: var(--muted); }
+    .drop-label strong { color: var(--text); }
+    .drop-types { font-size: 12px; color: var(--muted); margin-top: 6px; }
+
+    .file-selected {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: var(--accent-dim);
+      border: 1px solid var(--accent);
+      border-radius: 7px;
+      padding: 12px 16px;
+      margin-top: 12px;
+    }
+
+    .file-icon { font-size: 20px; }
+    .file-name { font-size: 13px; font-weight: 600; flex: 1; }
+    .file-size { font-size: 12px; color: var(--muted); }
+
+    .schema-presets {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 10px;
+      flex-wrap: wrap;
+    }
+
+    .preset-btn {
+      font-size: 11px;
+      padding: 5px 11px;
+      border-radius: 20px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      cursor: pointer;
+      font-weight: 500;
+    }
+
+    .preset-btn:hover { border-color: var(--accent); color: var(--text); }
+
+    .submit-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 20px;
+    }
+
+    .submit-hint { font-size: 12px; color: var(--muted); }
+
+    /* Status */
+    .status-card {
+      border-radius: var(--radius);
+      padding: 20px 24px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      margin-bottom: 20px;
+      display: none;
+    }
+
+    .status-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 8px;
+    }
+
+    .status-dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .status-dot.pending   { background: var(--yellow); animation: pulse 1.4s infinite; }
+    .status-dot.completed { background: var(--green); }
+    .status-dot.failed    { background: var(--red); }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: .3; }
+    }
+
+    .status-label { font-weight: 600; font-size: 15px; }
+    .status-meta  { font-size: 12px; color: var(--muted); }
+
+    /* Results */
+    .result-grid {
+      display: grid;
+      gap: 12px;
+    }
+
+    .result-field {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px 18px;
+    }
+
+    .result-key {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      color: var(--muted);
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .confidence {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 20px;
+    }
+
+    .conf-high   { background: rgba(16,185,129,.15); color: var(--green); }
+    .conf-medium { background: rgba(245,158,11,.15);  color: var(--yellow); }
+    .conf-low    { background: rgba(239,68,68,.15);   color: var(--red); }
+
+    .result-value {
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      font-size: 13px;
+      word-break: break-word;
+    }
+
+    .json-block {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      font-size: 12px;
+      overflow-x: auto;
+      white-space: pre;
+      color: #a5b4fc;
+      position: relative;
+    }
+
+    .copy-btn {
+      position: absolute;
+      top: 10px; right: 10px;
+      font-size: 11px;
+      padding: 4px 10px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    .copy-btn:hover { color: var(--text); }
+
+    .meta-row {
+      display: flex;
+      gap: 20px;
+      flex-wrap: wrap;
+      margin-top: 16px;
+    }
+
+    .meta-item {
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .meta-item strong { color: var(--text); }
+
+    .error-box {
+      background: rgba(239,68,68,.1);
+      border: 1px solid rgba(239,68,68,.3);
+      border-radius: 8px;
+      padding: 14px 16px;
+      color: #fca5a5;
+      font-size: 13px;
+    }
+
+    .alert {
+      padding: 10px 14px;
+      border-radius: 7px;
+      font-size: 13px;
+      margin-bottom: 14px;
+    }
+
+    .alert-info    { background: var(--accent-dim); border: 1px solid var(--accent); color: #a5b4fc; }
+    .alert-success { background: rgba(16,185,129,.1); border: 1px solid rgba(16,185,129,.3); color: #6ee7b7; }
+    .alert-error   { background: rgba(239,68,68,.1); border: 1px solid rgba(239,68,68,.3); color: #fca5a5; }
+
+    .hidden { display: none !important; }
+
+    /* Tabs */
+    .tabs { display: flex; gap: 4px; margin-bottom: 16px; }
+    .tab {
+      padding: 7px 16px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      color: var(--muted);
+      border: 1px solid transparent;
+    }
+    .tab.active { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+    .tab:hover:not(.active) { color: var(--text); }
+
+    .spinner {
+      display: inline-block;
+      width: 14px; height: 14px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+      vertical-align: middle;
+      margin-right: 6px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .key-pill {
+      display: inline-block;
+      padding: 2px 10px;
+      background: var(--accent-dim);
+      border: 1px solid var(--accent);
+      border-radius: 20px;
+      font-family: monospace;
+      font-size: 12px;
+      color: #a5b4fc;
+    }
+  </style>
+</head>
+<body>
+<header>
+  <div class="logo">⚡</div>
+  <span class="logo-text">DocPulse</span>
+  <span class="logo-tag">Document Intelligence API</span>
+</header>
+
+<div class="container">
+  <div style="margin-bottom:32px;">
+    <h2>Extract structured data from any document</h2>
+    <p class="sub">Upload a PDF, image, or DOCX + define a JSON Schema → get structured JSON with confidence scores.</p>
+  </div>
+
+  <div id="alertBanner" class="hidden"></div>
+
+  <!-- Step 1: API Key -->
+  <div class="card">
+    <div class="card-title"><span class="step-badge">1</span> API Configuration</div>
+    <label for="apiKey">API Key</label>
+    <div class="input-row">
+      <input type="text" id="apiKey" placeholder="di_..." />
+      <button class="btn-ghost" onclick="testKey()">Test Connection</button>
+    </div>
+    <div id="keyStatus" style="margin-top:10px;font-size:13px;"></div>
+    <div id="devBanner" class="hidden" style="margin-top:12px;">
+      <div class="alert alert-info">
+        🧑‍💻 <strong>Dev mode:</strong> API key auto-loaded — <span id="devKeyPill"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Step 2: Upload -->
+  <div class="card">
+    <div class="card-title"><span class="step-badge">2</span> Document &amp; Schema</div>
+
+    <label>Document</label>
+    <div class="drop-zone" id="dropZone">
+      <input type="file" id="fileInput" accept=".pdf,.docx,.doc,.png,.jpg,.jpeg,.tiff,.webp" />
+      <div class="drop-icon">📄</div>
+      <div class="drop-label"><strong>Click to upload</strong> or drag &amp; drop</div>
+      <div class="drop-types">PDF, DOCX, PNG, JPG, TIFF — max 50 MB</div>
+    </div>
+    <div id="fileInfo" class="hidden file-selected">
+      <span class="file-icon">📎</span>
+      <span class="file-name" id="fileName"></span>
+      <span class="file-size" id="fileSize"></span>
+      <button class="btn-ghost" onclick="clearFile()">✕</button>
+    </div>
+
+    <div style="margin-top:20px;">
+      <label>JSON Schema — define what to extract</label>
+      <div class="schema-presets">
+        <span class="preset-btn" onclick="loadPreset('invoice')">Invoice</span>
+        <span class="preset-btn" onclick="loadPreset('resume')">Resume</span>
+        <span class="preset-btn" onclick="loadPreset('contract')">Contract</span>
+        <span class="preset-btn" onclick="loadPreset('receipt')">Receipt</span>
+        <span class="preset-btn" onclick="loadPreset('id')">ID / Passport</span>
+      </div>
+      <textarea id="schema" spellcheck="false" placeholder='{"type":"object","properties":{...},"required":[]}'></textarea>
+    </div>
+
+    <div class="submit-row">
+      <span class="submit-hint">Job runs asynchronously — results polled automatically.</span>
+      <button class="btn-primary" id="submitBtn" onclick="submitJob()">Extract →</button>
+    </div>
+  </div>
+
+  <!-- Step 3: Results -->
+  <div id="resultSection" class="hidden">
+    <div class="status-card" id="statusCard" style="display:block;">
+      <div class="status-header">
+        <div class="status-dot pending" id="statusDot"></div>
+        <span class="status-label" id="statusLabel">Processing…</span>
+        <span style="flex:1"></span>
+        <span class="status-meta" id="statusMeta"></span>
+      </div>
+      <div id="statusSteps" style="font-size:13px;color:var(--muted);"></div>
+    </div>
+
+    <div id="resultContent" class="hidden">
+      <div class="card">
+        <div class="card-title">Extracted Fields</div>
+        <div class="tabs">
+          <div class="tab active" onclick="switchTab('fields')">Fields</div>
+          <div class="tab" onclick="switchTab('json')">Raw JSON</div>
+        </div>
+
+        <div id="tabFields">
+          <div class="result-grid" id="fieldGrid"></div>
+        </div>
+
+        <div id="tabJson" class="hidden">
+          <div class="json-block" id="jsonBlock">
+            <button class="copy-btn" onclick="copyJson()">Copy</button>
+            <code id="jsonCode"></code>
+          </div>
+        </div>
+
+        <div class="meta-row">
+          <div class="meta-item">Model: <strong id="metaModel">—</strong></div>
+          <div class="meta-item">Cost: <strong id="metaCost">—</strong></div>
+          <div class="meta-item">Format: <strong id="metaFormat">—</strong></div>
+          <div class="meta-item">Duration: <strong id="metaDuration">—</strong></div>
+        </div>
+      </div>
+
+      <button class="btn-ghost" onclick="resetForm()" style="margin-top:4px;">← Process another document</button>
+    </div>
+
+    <div id="errorContent" class="hidden">
+      <div class="error-box" id="errorMsg"></div>
+      <button class="btn-ghost" onclick="resetForm()" style="margin-top:12px;">← Try again</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const PRESETS = {
+    invoice: {
+      type: "object",
+      properties: {
+        invoice_number: { type: "string" },
+        date:           { type: "string" },
+        vendor_name:    { type: "string" },
+        vendor_address: { type: "string" },
+        total_amount:   { type: "number" },
+        currency:       { type: "string" },
+        line_items:     { type: "array", items: { type: "object", properties: { description: { type: "string" }, amount: { type: "number" } } } },
+        payment_terms:  { type: "string" }
+      },
+      required: ["invoice_number", "total_amount", "vendor_name"]
+    },
+    resume: {
+      type: "object",
+      properties: {
+        full_name:   { type: "string" },
+        email:       { type: "string" },
+        phone:       { type: "string" },
+        location:    { type: "string" },
+        summary:     { type: "string" },
+        skills:      { type: "array", items: { type: "string" } },
+        experience:  { type: "array", items: { type: "object", properties: { company: { type: "string" }, title: { type: "string" }, start_date: { type: "string" }, end_date: { type: "string" } } } },
+        education:   { type: "array", items: { type: "object", properties: { institution: { type: "string" }, degree: { type: "string" }, year: { type: "string" } } } }
+      },
+      required: ["full_name", "email"]
+    },
+    contract: {
+      type: "object",
+      properties: {
+        parties:        { type: "array", items: { type: "string" } },
+        effective_date: { type: "string" },
+        expiry_date:    { type: "string" },
+        jurisdiction:   { type: "string" },
+        governing_law:  { type: "string" },
+        key_obligations:{ type: "array", items: { type: "string" } },
+        payment_amount: { type: "number" },
+        currency:       { type: "string" }
+      },
+      required: ["parties", "effective_date"]
+    },
+    receipt: {
+      type: "object",
+      properties: {
+        merchant_name:    { type: "string" },
+        date:             { type: "string" },
+        items:            { type: "array", items: { type: "object", properties: { name: { type: "string" }, price: { type: "number" } } } },
+        subtotal:         { type: "number" },
+        tax:              { type: "number" },
+        total:            { type: "number" },
+        payment_method:   { type: "string" }
+      },
+      required: ["merchant_name", "total"]
+    },
+    id: {
+      type: "object",
+      properties: {
+        document_type:    { type: "string" },
+        full_name:        { type: "string" },
+        date_of_birth:    { type: "string" },
+        nationality:      { type: "string" },
+        document_number:  { type: "string" },
+        issue_date:       { type: "string" },
+        expiry_date:      { type: "string" },
+        issuing_country:  { type: "string" }
+      },
+      required: ["full_name", "document_number"]
+    }
+  };
+
+  let currentFile = null;
+  let pollTimer = null;
+  let jobStart = null;
+
+  // On load: try dev setup
+  window.addEventListener('DOMContentLoaded', async () => {
+    loadPreset('invoice');
+    try {
+      const res = await fetch('/dev/setup');
+      if (res.ok) {
+        const data = await res.json();
+        document.getElementById('apiKey').value = data.api_key;
+        document.getElementById('devKeyPill').innerHTML = `<span class="key-pill">${data.api_key.slice(0, 18)}…</span>`;
+        document.getElementById('devBanner').classList.remove('hidden');
+      }
+    } catch (_) {}
+  });
+
+  function loadPreset(name) {
+    document.getElementById('schema').value = JSON.stringify(PRESETS[name], null, 2);
+  }
+
+  // File handling
+  const dropZone = document.getElementById('dropZone');
+  const fileInput = document.getElementById('fileInput');
+
+  dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('over'); });
+  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('over'));
+  dropZone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropZone.classList.remove('over');
+    const file = e.dataTransfer.files[0];
+    if (file) setFile(file);
+  });
+  fileInput.addEventListener('change', () => { if (fileInput.files[0]) setFile(fileInput.files[0]); });
+
+  function setFile(f) {
+    currentFile = f;
+    document.getElementById('fileName').textContent = f.name;
+    document.getElementById('fileSize').textContent = formatBytes(f.size);
+    document.getElementById('fileInfo').classList.remove('hidden');
+  }
+
+  function clearFile() {
+    currentFile = null;
+    fileInput.value = '';
+    document.getElementById('fileInfo').classList.add('hidden');
+  }
+
+  function formatBytes(b) {
+    if (b < 1024) return b + ' B';
+    if (b < 1048576) return (b / 1024).toFixed(1) + ' KB';
+    return (b / 1048576).toFixed(1) + ' MB';
+  }
+
+  async function testKey() {
+    const key = document.getElementById('apiKey').value.trim();
+    if (!key) { showKeyStatus('Enter an API key first.', 'error'); return; }
+    try {
+      const res = await fetch('/v1/jobs?limit=1', { headers: { 'Authorization': 'Bearer ' + key } });
+      if (res.ok) showKeyStatus('✓ Connected successfully', 'success');
+      else showKeyStatus('✗ Invalid API key', 'error');
+    } catch(e) {
+      showKeyStatus('✗ Could not reach server', 'error');
+    }
+  }
+
+  function showKeyStatus(msg, type) {
+    const el = document.getElementById('keyStatus');
+    el.style.color = type === 'success' ? 'var(--green)' : 'var(--red)';
+    el.textContent = msg;
+  }
+
+  async function submitJob() {
+    const key = document.getElementById('apiKey').value.trim();
+    if (!key) { showAlert('Enter an API key first.', 'error'); return; }
+    if (!currentFile) { showAlert('Select a document to upload.', 'error'); return; }
+
+    let schema;
+    try {
+      schema = JSON.parse(document.getElementById('schema').value);
+    } catch(e) {
+      showAlert('Schema is not valid JSON: ' + e.message, 'error'); return;
+    }
+
+    const btn = document.getElementById('submitBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span>Submitting…';
+
+    const fd = new FormData();
+    fd.append('document', currentFile);
+    fd.append('schema', JSON.stringify(schema));
+
+    try {
+      const res = await fetch('/v1/extract', {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + key },
+        body: fd
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        showAlert(data.error || 'Submission failed.', 'error');
+        btn.disabled = false; btn.textContent = 'Extract →'; return;
+      }
+      jobStart = Date.now();
+      showAlert('', '');
+      document.getElementById('resultSection').classList.remove('hidden');
+      document.getElementById('resultContent').classList.add('hidden');
+      document.getElementById('errorContent').classList.add('hidden');
+      pollJob(data.job_id, key);
+    } catch(e) {
+      showAlert('Network error: ' + e.message, 'error');
+      btn.disabled = false; btn.textContent = 'Extract →';
+    }
+  }
+
+  const STATUS_LABELS = {
+    pending:    'Queued — waiting for worker…',
+    ingesting:  'Ingesting document…',
+    chunking:   'Chunking text…',
+    extracting: 'Extracting fields via LLM…',
+    assembling: 'Assembling results…',
+    completed:  'Complete',
+    failed:     'Failed'
+  };
+
+  function pollJob(jobId, key) {
+    if (pollTimer) clearInterval(pollTimer);
+    pollTimer = setInterval(async () => {
+      try {
+        const res = await fetch('/v1/jobs/' + jobId, { headers: { 'Authorization': 'Bearer ' + key } });
+        const job = await res.json();
+        updateStatus(job);
+        if (job.status === 'completed' || job.status === 'failed') {
+          clearInterval(pollTimer);
+          showResult(job);
+        }
+      } catch(e) { /* keep polling */ }
+    }, 1500);
+  }
+
+  function updateStatus(job) {
+    const dot = document.getElementById('statusDot');
+    const label = document.getElementById('statusLabel');
+    dot.className = 'status-dot ' + (job.status === 'completed' ? 'completed' : job.status === 'failed' ? 'failed' : 'pending');
+    label.textContent = STATUS_LABELS[job.status] || job.status;
+    const elapsed = ((Date.now() - jobStart) / 1000).toFixed(1);
+    document.getElementById('statusMeta').textContent = elapsed + 's elapsed';
+  }
+
+  function showResult(job) {
+    const btn = document.getElementById('submitBtn');
+    btn.disabled = false; btn.textContent = 'Extract →';
+
+    if (job.status === 'failed') {
+      document.getElementById('errorContent').classList.remove('hidden');
+      document.getElementById('errorMsg').textContent = job.error_message || 'Unknown error';
+      return;
+    }
+
+    document.getElementById('resultContent').classList.remove('hidden');
+
+    // Populate field grid
+    const grid = document.getElementById('fieldGrid');
+    grid.innerHTML = '';
+    const result = job.result || {};
+    const scores = job.confidence_scores || {};
+    for (const [key, val] of Object.entries(result)) {
+      const score = scores[key];
+      const el = document.createElement('div');
+      el.className = 'result-field';
+      const confClass = score >= 0.85 ? 'conf-high' : score >= 0.6 ? 'conf-medium' : 'conf-low';
+      const confLabel = score != null ? `${Math.round(score * 100)}%` : '';
+      const confBadge = score != null ? `<span class="confidence ${confClass}">${confLabel}</span>` : '';
+      const valStr = typeof val === 'object' ? JSON.stringify(val, null, 2) : String(val ?? '—');
+      el.innerHTML = `
+        <div class="result-key">
+          <span>${key}</span>${confBadge}
+        </div>
+        <div class="result-value">${escHtml(valStr)}</div>
+      `;
+      grid.appendChild(el);
+    }
+
+    // JSON tab
+    document.getElementById('jsonCode').textContent = JSON.stringify(result, null, 2);
+
+    // Meta
+    document.getElementById('metaModel').textContent = job.model_used || '—';
+    document.getElementById('metaCost').textContent = job.cost_usd != null ? '$' + job.cost_usd.toFixed(5) : '—';
+    document.getElementById('metaFormat').textContent = job.document_format || '—';
+    const dur = job.completed_at && job.created_at
+      ? ((new Date(job.completed_at) - new Date(job.created_at)) / 1000).toFixed(1) + 's'
+      : '—';
+    document.getElementById('metaDuration').textContent = dur;
+  }
+
+  function switchTab(tab) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    event.target.classList.add('active');
+    document.getElementById('tabFields').classList.toggle('hidden', tab !== 'fields');
+    document.getElementById('tabJson').classList.toggle('hidden', tab !== 'json');
+  }
+
+  function copyJson() {
+    const code = document.getElementById('jsonCode').textContent;
+    navigator.clipboard.writeText(code).then(() => {
+      const btn = document.querySelector('.copy-btn');
+      btn.textContent = 'Copied!';
+      setTimeout(() => btn.textContent = 'Copy', 1500);
+    });
+  }
+
+  function resetForm() {
+    if (pollTimer) clearInterval(pollTimer);
+    document.getElementById('resultSection').classList.add('hidden');
+    document.getElementById('submitBtn').disabled = false;
+    document.getElementById('submitBtn').textContent = 'Extract →';
+    clearFile();
+    showAlert('', '');
+  }
+
+  function showAlert(msg, type) {
+    const el = document.getElementById('alertBanner');
+    if (!msg) { el.classList.add('hidden'); return; }
+    el.className = 'alert alert-' + type;
+    el.textContent = msg;
+  }
+
+  function escHtml(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+</script>
+</body>
+</html>

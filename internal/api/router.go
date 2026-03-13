@@ -25,6 +25,10 @@ func NewRouter(h *Handlers, tenants *database.TenantStore, counter rateIncrement
 
 	// Public
 	r.Get("/health", h.HandleHealth)
+	r.Get("/dev/setup", h.HandleDevSetup)
+
+	// Frontend (serve index.html for all unmatched routes)
+	r.Handle("/*", frontendHandler())
 
 	// Authenticated
 	r.Group(func(r chi.Router) {

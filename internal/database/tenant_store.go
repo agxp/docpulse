@@ -41,3 +41,17 @@ func (s *TenantStore) Create(ctx context.Context, t *domain.Tenant) error {
 	}
 	return nil
 }
+
+// CreateIfNotExists inserts the tenant, silently ignoring conflicts on api_key_hash.
+func (s *TenantStore) CreateIfNotExists(ctx context.Context, t *domain.Tenant) error {
+	_, err := s.db.Exec(ctx, `
+		INSERT INTO tenants (id, name, api_key_hash, rate_limit, byte_limit, created_at)
+		VALUES ($1, $2, $3, $4, $5, $6)
+		ON CONFLICT (api_key_hash) DO NOTHING`,
+		t.ID, t.Name, t.APIKeyHash, t.RateLimit, t.ByteLimit, t.CreatedAt,
+	)
+	if err != nil {
+		return fmt.Errorf("upserting tenant: %w", err)
+	}
+	return nil
+}

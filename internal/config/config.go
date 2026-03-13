@@ -24,8 +24,10 @@ type RedisConfig struct {
 }
 
 type APIConfig struct {
-	Port              string
+	Port               string
 	RateLimitPerMinute int
+	DevMode            bool
+	DevAPIKey          string
 }
 
 type LLMConfig struct {
@@ -58,6 +60,8 @@ func Load() Config {
 		API: APIConfig{
 			Port:               getEnv("PORT", "8080"),
 			RateLimitPerMinute: getEnvInt("RATE_LIMIT_PER_MINUTE", 60),
+			DevMode:            os.Getenv("DEV_MODE") == "true",
+			DevAPIKey:          os.Getenv("DEV_API_KEY"),
 		},
 		LLM: LLMConfig{
 			OpenAIKey:           os.Getenv("OPENAI_API_KEY"),

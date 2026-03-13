@@ -25,5 +25,61 @@ services:
       timeout: 5s
       retries: 5
 
+  api:
+    build:
+      context: .
+      target: api
+    ports:
+      - "8081:8080"
+    environment:
+      DATABASE_URL: postgres://docpulse:docpulse@postgres:5432/docpulse?sslmode=disable
+      REDIS_URL: redis://redis:6379
+      PORT: "8080"
+      BASE_URL: http://localhost:8081
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      LLM_FAST_MODEL: ${LLM_FAST_MODEL:-gpt-4o-mini}
+      LLM_STRONG_MODEL: ${LLM_STRONG_MODEL:-gpt-4o}
+      LLM_MAX_RETRIES: ${LLM_MAX_RETRIES:-2}
+      LLM_COMPLEXITY_THRESHOLD: ${LLM_COMPLEXITY_THRESHOLD:-10}
+      RATE_LIMIT_PER_MINUTE: ${RATE_LIMIT_PER_MINUTE:-60}
+      STORAGE_LOCAL_DIR: /data/docpulse
+      DEV_MODE: "true"
+      DEV_API_KEY: ${DEV_API_KEY:-di_devkey_changeme_in_production}
+    volumes:
+      - docpulse_data:/data/docpulse
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  worker:
+    build:
+      context: .
+      target: worker
+    environment:
+      DATABASE_URL: postgres://docpulse:docpulse@postgres:5432/docpulse?sslmode=disable
+      REDIS_URL: redis://redis:6379
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      LLM_FAST_MODEL: ${LLM_FAST_MODEL:-gpt-4o-mini}
+      LLM_STRONG_MODEL: ${LLM_STRONG_MODEL:-gpt-4o}
+      LLM_MAX_RETRIES: ${LLM_MAX_RETRIES:-2}
+      LLM_COMPLEXITY_THRESHOLD: ${LLM_COMPLEXITY_THRESHOLD:-10}
+      WORKER_CONCURRENCY: ${WORKER_CONCURRENCY:-4}
+      WORKER_POLL_INTERVAL: ${WORKER_POLL_INTERVAL:-2s}
+      WORKER_MAX_JOB_DURATION: ${WORKER_MAX_JOB_DURATION:-10m}
+      WORKER_CACHE_TTL: ${WORKER_CACHE_TTL:-24h}
+      STORAGE_LOCAL_DIR: /data/docpulse
+    volumes:
+      - docpulse_data:/data/docpulse
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
 volumes:
   postgres_data:
+  docpulse_data:

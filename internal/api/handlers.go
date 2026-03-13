@@ -34,14 +34,24 @@ type webhookStore interface {
 }
 
 type Handlers struct {
-	jobs     jobStore
-	webhooks webhookStore
-	store    storage.ObjectStore
-	baseURL  string
+	jobs      jobStore
+	webhooks  webhookStore
+	store     storage.ObjectStore
+	baseURL   string
+	devAPIKey string
 }
 
-func NewHandlers(jobs *database.JobStore, webhooks *database.WebhookStore, store storage.ObjectStore, baseURL string) *Handlers {
-	return &Handlers{jobs: jobs, webhooks: webhooks, store: store, baseURL: baseURL}
+func NewHandlers(jobs *database.JobStore, webhooks *database.WebhookStore, store storage.ObjectStore, baseURL, devAPIKey string) *Handlers {
+	return &Handlers{jobs: jobs, webhooks: webhooks, store: store, baseURL: baseURL, devAPIKey: devAPIKey}
+}
+
+// HandleDevSetup returns the dev API key. Only active when devAPIKey is set (DEV_MODE=true).
+func (h *Handlers) HandleDevSetup(w http.ResponseWriter, r *http.Request) {
+	if h.devAPIKey == "" {
+		writeError(w, "dev mode not enabled", "not_found", http.StatusNotFound)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"api_key": h.devAPIKey})
 }
 
 // HandleExtract accepts a multipart document + JSON schema and creates an async job.

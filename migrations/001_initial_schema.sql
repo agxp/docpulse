@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS tenants (
     created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_tenants_api_key_hash ON tenants(api_key_hash);
+CREATE INDEX IF NOT EXISTS idx_tenants_api_key_hash ON tenants(api_key_hash);
 
 -- Jobs
 CREATE TABLE IF NOT EXISTS jobs (
@@ -34,9 +34,9 @@ CREATE TABLE IF NOT EXISTS jobs (
 );
 
 -- Index for worker polling: pending jobs ordered by creation time
-CREATE INDEX idx_jobs_pending ON jobs(created_at ASC) WHERE status = 'pending';
+CREATE INDEX IF NOT EXISTS idx_jobs_pending ON jobs(created_at ASC) WHERE status = 'pending';
 -- Index for tenant job listing
-CREATE INDEX idx_jobs_tenant ON jobs(tenant_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_jobs_tenant ON jobs(tenant_id, created_at DESC);
 
 -- Chunks (for tracking per-chunk extraction status)
 CREATE TABLE IF NOT EXISTS chunks (
@@ -60,7 +60,7 @@ CREATE TABLE IF NOT EXISTS webhooks (
     created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_webhooks_tenant ON webhooks(tenant_id) WHERE active = TRUE;
+CREATE INDEX IF NOT EXISTS idx_webhooks_tenant ON webhooks(tenant_id) WHERE active = TRUE;
 
 -- Webhook deliveries (audit trail + retry queue)
 CREATE TABLE IF NOT EXISTS webhook_deliveries (
@@ -74,7 +74,7 @@ CREATE TABLE IF NOT EXISTS webhook_deliveries (
     created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_webhook_deliveries_pending ON webhook_deliveries(next_retry_at ASC)
+CREATE INDEX IF NOT EXISTS idx_webhook_deliveries_pending ON webhook_deliveries(next_retry_at ASC)
     WHERE status = 'pending';
 
 COMMIT;

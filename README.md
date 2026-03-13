@@ -4,9 +4,21 @@ Multi-tenant document extraction platform. Submit any document + a JSON schema d
 
 ## Quickstart
 
+### Single command (Docker)
+
 ```bash
-# 1. Start dependencies
-docker-compose up -d
+OPENAI_API_KEY=sk-... docker compose up --build
+```
+
+Then open **http://localhost:8081** — the web UI loads with a dev API key pre-filled. Upload a document, pick a schema preset, and extract.
+
+The stack (`api`, `worker`, `postgres`, `redis`) starts automatically. Migrations run on boot. A dev tenant is seeded with the key `di_devkey_changeme_in_production` (override via `DEV_API_KEY` env var).
+
+### Local development (without Docker for the Go services)
+
+```bash
+# 1. Start infrastructure
+docker compose up -d postgres redis
 
 # 2. Set environment
 cp .env.example .env
@@ -25,10 +37,22 @@ make run-worker
 
 ## Usage
 
-### Submit an extraction job
+### Web UI
+
+The API server serves a frontend at `/`. In dev mode the API key is auto-filled. Steps:
+
+1. Upload a PDF, DOCX, or image (max 50 MB)
+2. Define a JSON Schema — or pick a preset (Invoice, Resume, Contract, Receipt, ID)
+3. Click **Extract** — the UI polls for the result and displays each field with a confidence score
+
+A sample document is included at `testdata/sample-invoice.docx`.
+
+### API
+
+#### Submit an extraction job
 
 ```bash
-curl -X POST http://localhost:8080/v1/extract \
+curl -X POST http://localhost:8081/v1/extract \
   -H "Authorization: Bearer di_your_key_here" \
   -F "document=@invoice.pdf" \
   -F 'schema={
@@ -55,32 +79,29 @@ curl -X POST http://localhost:8080/v1/extract \
 # {"job_id": "abc-123", "status": "pending", "poll_url": "/v1/jobs/abc-123"}
 ```
 
-### Poll for results
+#### Poll for results
 
 ```bash
-curl http://localhost:8080/v1/jobs/abc-123 \
+curl http://localhost:8081/v1/jobs/abc-123 \
   -H "Authorization: Bearer di_your_key_here"
 ```
 
-### List jobs
+#### List jobs
 
 ```bash
-curl "http://localhost:8080/v1/jobs?limit=20&offset=0" \
+curl "http://localhost:8081/v1/jobs?limit=20&offset=0" \
   -H "Authorization: Bearer di_your_key_here"
-
-# Response:
-# {"jobs": [...], "limit": 20, "offset": 0}
 ```
 
-Default limit is 20, max is 100. No total count is returned (not yet implemented).
+Default limit is 20, max is 100.
 
-### Webhooks
+#### Webhooks
 
 Register a URL to receive a POST when a job completes. The secret is generated server-side and shown **once** — store it to verify signatures.
 
 ```bash
 # Register
-curl -X POST http://localhost:8080/v1/webhooks \
+curl -X POST http://localhost:8081/v1/webhooks \
   -H "Authorization: Bearer di_your_key_here" \
   -H "Content-Type: application/json" \
   -d '{"url": "https://example.com/webhook"}'
@@ -89,7 +110,7 @@ curl -X POST http://localhost:8080/v1/webhooks \
 # {"id": "...", "url": "...", "secret": "abc123...", "active": true}
 
 # Delete
-curl -X DELETE http://localhost:8080/v1/webhooks/{id} \
+curl -X DELETE http://localhost:8081/v1/webhooks/{id} \
   -H "Authorization: Bearer di_your_key_here"
 ```
 
@@ -144,8 +165,8 @@ Client → API (Go/chi) → PostgreSQL (job queue)
 cmd/api/          — HTTP server entry point
 cmd/worker/       — Job processor entry point
 internal/
-  api/            — HTTP handlers and routing
-  api/middleware/  — Auth, logging
+  api/            — HTTP handlers, routing, embedded frontend
+  api/middleware/  — Auth, logging, rate limiting
   auth/           — API key generation and hashing
   config/         — Environment-based configuration
   database/       — PostgreSQL stores (jobs, tenants, webhooks)
@@ -156,13 +177,15 @@ internal/
   llm/            — Model routing and structured extraction
   storage/        — Object storage interface (local filesystem only)
   webhook/        — Webhook delivery with HMAC signing + retries
-migrations/       — SQL schema migrations
+migrations/       — SQL schema (auto-applied on API startup)
+testdata/         — Sample documents for testing
 scripts/          — Dev utilities (seed tenant)
+Dockerfile        — Multi-stage build: api and worker targets
 ```
 
 ## Stack
 
-Go 1.24 · PostgreSQL 16 · Redis 7 · OpenAI API · Fly.io
+Go 1.24 · PostgreSQL 16 · Redis 7 · OpenAI API · Docker · Fly.io
 
 **System dependencies** (for text extraction):
 - `poppler-utils` — pdftotext for native PDFs
@@ -175,4 +198,4 @@ Go 1.24 · PostgreSQL 16 · Redis 7 · OpenAI API · Fly.io
 - **Schema validation**: validates structure (type=object, properties present, each property has a type), but does not implement the full JSON Schema specification.
 - **Job list pagination**: `limit`/`offset` work and response includes a `total` count, but there is no cursor-based pagination.
 - **Worker cache**: Redis-backed with a configurable TTL (`WORKER_CACHE_TTL`, default 24h), but no LRU eviction beyond TTL.
-- **`make migrate`**: runs `psql` directly — requires `psql` installed on your machine, not just Docker.
+- **`make migrate`**: runs `psql` directly — requires `psql` installed on your machine. When using Docker (`docker compose up`), migrations run automatically on API startup instead.
